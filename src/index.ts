@@ -10,18 +10,17 @@ let categoryList: ICategory[];
 let apiJson: IApiJSON;
 
 const getApiJSON = async (url: string) => {
-  const result = await getResponse(url);
-
-  console.log("getApiResponse Result ", result);
+  return await getResponse(url);
+  // console.log("getApiResponse Result ", result);
 };
 const gen_by_category = async () => {
   const specifiedCategory = categoryList.find(
     (item) => item.name === CATEGORY_NAME
   );
   if (specifiedCategory) {
-    const result = getApiJSON(
+    const result = (await getApiJSON(
       API_JSON_BASE_LINK_ADDRESS + specifiedCategory.url
-    ) as unknown as IApiJSON;
+    )) as unknown as IApiJSON;
     console.log("apiJSonResult", result);
     apiJson = result;
     gen(apiJson);
