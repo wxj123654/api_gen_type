@@ -1,8 +1,12 @@
 import { gen } from "./gen";
 import { getResponse } from "./get";
+import { IApiJSON, ICategory } from "./type";
 
 const API_JSON_BASE_LINK_ADDRESS = "http://101.34.2.112:9700";
 const API_CATEGORY_LINK_ADDRESS = "http://101.34.2.112:9700/swagger-resources";
+
+export const GEN_API_DIR = 'gen_api'
+export const GEN_TYPE_DIR = 'gen_type'
 
 const CATEGORY_NAME = "后台管理系统";
 

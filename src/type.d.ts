@@ -29,11 +29,12 @@ interface IPathPOST {
   post: IPathDetail;
 }
 
-interface IPathDetail {
+export interface IPathDetail {
   consumes: Array<string>;
   deprecated: boolean;
   description: string;
   operationId: string;
+  parameters: Array<IParams>;
   responses: {
     200: {
       description: string;
@@ -45,4 +46,17 @@ interface IPathDetail {
   };
   summary: string;
   tags: Array<string>;
+}
+
+export interface IParams {
+  name:string;
+  description: string;
+  name: string;
+  required:string
+  in:string; // 传入的类型
+}
+
+interface ITagFileMap {
+  tagName: string;
+  fileName: string;
 }
