@@ -9,6 +9,7 @@ const typeMap: Record<string, string> = {
   integer: "number",
   string: "string",
   boolean: "boolean",
+  number: "number",
 };
 
 function addToFileDependence(fileName: string, dependence: string) {
@@ -53,6 +54,31 @@ function getParamsType(pathDetail: IPathDetail) {
     return "url";
   }
   return "json";
+}
+
+function originalRefToType(fileName: string, ref: string) {
+  let returnTypeString = "any";
+  const dependenceList = ref.split("«").map((item) => item.replace(/»/g, "")); // replace只能替换一个，使用正则替换全部
+
+  const dependence = dependenceList[dependenceList.length - 1];
+  if (dependenceList.includes("Page")) {
+    returnTypeString = `ResponsePage<${dependence}>`;
+  } else if (dependenceList.includes("List")) {
+    returnTypeString = `Response<${dependence}[]>`;
+  } else if (dependence === "Result") {
+    returnTypeString = `Response<any>`;
+  } else {
+    returnTypeString = `Response<${dependence}>`;
+  }
+
+  const noImportType = ["string", "integer", "boolean", "object"];
+  if (dependence !== "Result" && !noImportType.includes(dependence))
+    addToFileDependence(fileName, dependence);
+
+  return {
+    returnTypeString,
+    dependence,
+  };
 }
 
 /**
@@ -107,24 +133,11 @@ function genContent(
 
   let returnTypeString = "any"; // 默认为any 有些接口文档不标准没有返回值类型
   if (pathDetail.responses[200].schema) {
-    const dependenceList = pathDetail.responses[200].schema.originalRef
-      .split("«")
-      .map((item) => item.replace(/»/g, "")); // replace只能替换一个，使用正则替换全部
-
-    const dependence = dependenceList[dependenceList.length - 1];
-    if (dependenceList.includes("Page")) {
-      returnTypeString = `ResponsePage<${dependence}>`;
-    } else if (dependenceList.includes("List")) {
-      returnTypeString = `Response<${dependence}[]>`;
-    } else if (dependence === "Result") {
-      returnTypeString = `Response<any>`;
-    } else {
-      returnTypeString = `Response<${dependence}>`;
-    }
-
-    const noImportType = ["string", "integer", "boolean", "object"];
-    if (dependence !== "Result" && !noImportType.includes(dependence))
-      addToFileDependence(fileName, dependence);
+    const result = originalRefToType(
+      fileName,
+      pathDetail.responses[200].schema.originalRef
+    );
+    returnTypeString = result.returnTypeString;
   }
 
   // pathDetail.responses[200].schema;
@@ -173,20 +186,56 @@ function genType(apiJSON: IApiJSON) {
     typeList = typeList.concat(...dependenceSet);
   }
   console.log("typeList", typeList);
-  for (let key in apiJSON.definitions) {
-    if (typeList.includes(key)) {
-      const value = apiJSON.definitions[key];
+  try {
+    for (let key in apiJSON.definitions) {
+      if (typeList.includes(key)) {
+        const value = apiJSON.definitions[key];
 
-      let propertyString = "";
-      for (let propertyKey in value.properties) {
-        const propertyValue = value.properties[propertyKey];
-        propertyString += `  ${propertyKey}: ${typeMap[propertyValue.type]};\n`;
-      }
-      const content = `
+        let propertyString = "";
+        for (let propertyKey in value.properties) {
+          const propertyValue = value.properties[propertyKey];
+          let type: string;
+          // if ('type' in propertyValue.type === undefined) {
+          //   console.log("propertyValue", propertyValue);
+          // }
+          // console.log("propertyValue.type", propertyValue.type);
+          if ("items" in propertyValue) {
+            if ("originalRef" in propertyValue.items) {
+              type = `Array<${propertyValue.items.originalRef}>`;
+              if (!typeList.includes(propertyValue.items.originalRef)) {
+                addToFileDependence("other", propertyValue.items.originalRef);
+                throw new Error("interface not found");
+              }
+            } else {
+              // TODO!
+              type = `Array<${typeMap[propertyValue.items.type]}>`;
+            }
+          } else if ("enum" in propertyValue) {
+            type = propertyValue.enum.join(" | ");
+          } else if ("originalRef" in propertyValue) {
+            const result = originalRefToType(
+              "other",
+              propertyValue.originalRef
+            );
+            type = result.returnTypeString;
+            if (typeList.includes(result.dependence)) {
+              throw new Error("interface not found");
+            }
+          } else {
+            type = typeMap[propertyValue.type];
+          }
+          propertyString += `  ${propertyKey}: ${type};\n`;
+        }
+        const content = `
 export interface ${value.title} {
 ${propertyString}}
       `;
-      fs.appendFileSync(nodePath.resolve(GEN_TYPE_DIR, "index.ts"), content);
+        fs.appendFileSync(nodePath.resolve(GEN_TYPE_DIR, "index.ts"), content);
+      }
+    }
+  } catch (err: any) {
+    if (err.message === "interface not found") {
+      genType(apiJSON);
     }
   }
 }

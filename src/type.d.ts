@@ -15,9 +15,33 @@ interface IApiJSON {
   tags: Array<ITag>;
 }
 
-interface IProperty {
+type IProperty =
+  | IPropertyBaseType
+  | IPropertyArray
+  | IPropertyEnum
+  | IPropertyRef;
+
+interface IPropertyBaseType {
   description: string;
   type: string;
+}
+
+interface IPropertyArray {
+  items: ISchema;
+  description: string;
+  type: string;
+}
+
+interface IPropertyEnum {
+  description: string;
+  enum: unknown[];
+  type: string;
+}
+
+interface IPropertyRef {
+  description: string;
+  $ref: string;
+  originalRef: string;
 }
 
 interface IDefinition {
