@@ -1,6 +1,6 @@
 import fs from "fs";
 import nodePath from "path";
-import { GEN_API_DIR } from ".";
+import { GEN_API_DIR, GEN_TYPE_DIR } from ".";
 import { ITag, ITagFileMap, IPath, IApiJSON, IPathDetail } from "./type";
 
 const fileDependence: Map<string, Set<string>> = new Map();
@@ -10,6 +10,17 @@ const typeMap: Record<string, string> = {
   string: "string",
   boolean: "boolean",
 };
+
+function addToFileDependence(fileName: string, dependence: string) {
+  let set: Set<string>;
+  if (fileDependence.has(fileName)) {
+    set = fileDependence.get(fileName)!;
+  } else {
+    set = new Set();
+  }
+  set.add(dependence);
+  fileDependence.set(fileName, set);
+}
 
 /**
  *  生成文件并且返回tag和file对应map的数组
@@ -64,7 +75,6 @@ function genContent(
       .filter((item) => item.name !== "token")
       .forEach((item) => {
         if (paramsString !== "") paramsString += ",";
-        console.log("item.type", item.type);
         paramsString =
           paramsString +
           `${item.name}${item.required ? "" : "?"}: ${typeMap[item.type]}`;
@@ -79,15 +89,8 @@ function genContent(
     if (params.length > 0) {
       const param = pathDetail.parameters[0];
       paramsString = `data: ${param.schema?.originalRef}`;
-      // needInputList.push(param.schema!.originRef);
-      let set: Set<string>;
-      if (fileDependence.has(fileName)) {
-        set = fileDependence.get(fileName)!;
-      } else {
-        set = new Set();
-      }
-      set.add(param.schema!.originalRef);
-      fileDependence.set(fileName, set);
+      // needInputList.push(param.schema!.originalRef);
+      addToFileDependence(fileName, param.schema!.originalRef);
     }
   }
 
@@ -95,12 +98,41 @@ function genContent(
   if (paramsString) {
     configString = "data";
   }
+
+  // console.log(
+  //   "pathDetail.responses[200].schema",
+  //   pathDetail,
+  //   pathDetail.responses[200].schema
+  // );
+
+  let returnTypeString = "any"; // 默认为any 有些接口文档不标准没有返回值类型
+  if (pathDetail.responses[200].schema) {
+    const dependenceList = pathDetail.responses[200].schema.originalRef
+      .split("«")
+      .map((item) => item.replace(/»/g, "")); // replace只能替换一个，使用正则替换全部
+
+    const dependence = dependenceList[dependenceList.length - 1];
+    if (dependenceList.includes("Page")) {
+      returnTypeString = `ResponsePage<${dependence}>`;
+    } else if (dependenceList.includes("List")) {
+      returnTypeString = `Response<${dependence}[]>`;
+    } else if (dependence === "Result") {
+      returnTypeString = `Response<any>`;
+    } else {
+      returnTypeString = `Response<${dependence}>`;
+    }
+
+    const noImportType = ["string", "integer", "boolean", "object"];
+    if (dependence !== "Result" && !noImportType.includes(dependence))
+      addToFileDependence(fileName, dependence);
+  }
+
   // pathDetail.responses[200].schema;
 
   const content = `
 // ${pathDetail.description ?? ""}
 export function ${pathDetail.operationId}(${paramsString}) {
-  return request.${type}("${url}",${configString})
+  return request.${type}<${returnTypeString}>("${url}",${configString})
 }
 `;
   return content;
@@ -120,10 +152,42 @@ function addDependenceToFile() {
     }
 
     const computedFilePath = nodePath.resolve(GEN_API_DIR, fileName);
-    const dependenceResultString = `import type{${dependenceString}} from "./gen_type"`;
+    const dependenceResultString = `import type { ${dependenceString} } from "../${GEN_TYPE_DIR}"`;
     const prevString = fs.readFileSync(computedFilePath);
     fs.writeFileSync(computedFilePath, dependenceResultString);
     fs.appendFileSync(computedFilePath, prevString);
+  }
+}
+
+/**
+ * 生成类型
+ */
+function genType(apiJSON: IApiJSON) {
+  if (!fs.existsSync(GEN_TYPE_DIR)) {
+    fs.mkdirSync(GEN_TYPE_DIR);
+  }
+  fs.writeFileSync(nodePath.resolve(GEN_TYPE_DIR, "index.ts"), "");
+
+  let typeList: string[] = [];
+  for (let dependenceSet of fileDependence.values()) {
+    typeList = typeList.concat(...dependenceSet);
+  }
+  console.log("typeList", typeList);
+  for (let key in apiJSON.definitions) {
+    if (typeList.includes(key)) {
+      const value = apiJSON.definitions[key];
+
+      let propertyString = "";
+      for (let propertyKey in value.properties) {
+        const propertyValue = value.properties[propertyKey];
+        propertyString += `  ${propertyKey}: ${typeMap[propertyValue.type]};\n`;
+      }
+      const content = `
+export interface ${value.title} {
+${propertyString}}
+      `;
+      fs.appendFileSync(nodePath.resolve(GEN_TYPE_DIR, "index.ts"), content);
+    }
   }
 }
 
@@ -132,7 +196,6 @@ function addDependenceToFile() {
  */
 export function gen(apiJSON: IApiJSON) {
   const tags = apiJSON.tags;
-  console.log("tags", tags);
   /**
    * ITag
    * description: "Page Config Controller"
@@ -176,6 +239,6 @@ export function gen(apiJSON: IApiJSON) {
     }
   }
 
-  console.log("fileDependence", fileDependence);
   addDependenceToFile();
+  genType(apiJSON);
 }

@@ -7,12 +7,24 @@ interface ICategory {
 
 interface IApiJSON {
   basePath: string;
-  definitions: string;
+  definitions: Record<string, IDefinition>;
   host: string;
   info: string;
   paths: Record<string, IPath>;
   swagger: string;
   tags: Array<ITag>;
+}
+
+interface IProperty {
+  description: string;
+  type: string;
+}
+
+interface IDefinition {
+  properties: Record<string, IProperty>;
+  title: string;
+  type: string;
+  required?: string[];
 }
 
 interface ITag {
