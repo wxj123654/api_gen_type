@@ -49,11 +49,18 @@ export interface IPathDetail {
 }
 
 export interface IParams {
-  name:string;
+  name: string;
   description: string;
   name: string;
-  required:string
-  in:string; // 传入的类型
+  required: string;
+  in: string;
+  schema?: ISchema; // 目前只有post请求有
+  type: string; // 传入的类型
+}
+
+interface ISchema {
+  $ref: string;
+  originalRef: string;
 }
 
 interface ITagFileMap {

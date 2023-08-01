@@ -2,13 +2,17 @@ import { gen } from "./gen";
 import { getResponse } from "./get";
 import { IApiJSON, ICategory } from "./type";
 
-const API_JSON_BASE_LINK_ADDRESS = "http://101.34.2.112:9700";
-const API_CATEGORY_LINK_ADDRESS = "http://101.34.2.112:9700/swagger-resources";
+// const BASE_URL = "http://101.34.2.112:9700";
+const BASE_URL = "http://101.34.2.112:9760";
 
-export const GEN_API_DIR = 'gen_api'
-export const GEN_TYPE_DIR = 'gen_type'
+const API_JSON_BASE_LINK_ADDRESS = BASE_URL;
+const API_CATEGORY_LINK_ADDRESS = `${BASE_URL}/swagger-resources`;
 
-const CATEGORY_NAME = "后台管理系统";
+export const GEN_API_DIR = "gen_api";
+export const GEN_TYPE_DIR = "gen_type";
+
+// const CATEGORY_NAME = "后台管理系统";
+const CATEGORY_NAME = "商城后端";
 
 let categoryList: ICategory[];
 let apiJson: IApiJSON;
