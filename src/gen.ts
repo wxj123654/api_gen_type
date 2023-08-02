@@ -1,7 +1,7 @@
 import fs from "fs";
 import nodePath from "path";
 import { GEN_API_DIR, GEN_TYPE_DIR } from ".";
-import { ITag, ITagFileMap, IPath, IApiJSON, IPathDetail } from "./type";
+import { ITag, ITagFileMap, IApiJSON, IPathDetail } from "./type";
 
 const fileDependence: Map<string, Set<string>> = new Map();
 
@@ -49,8 +49,8 @@ function genFile(tags: ITag[]) {
 }
 
 function getParamsType(pathDetail: IPathDetail) {
-  const params = pathDetail.parameters.filter((item) => item.name !== "token");
-  const param = params.find((item) => item.in === "query");
+  const params = pathDetail.parameters?.filter((item) => item.name !== "token");
+  const param = params?.find((item) => item.in === "query");
   if (param) {
     return "url";
   }
@@ -101,7 +101,7 @@ function genContent(
   let paramsString: string = "";
   if (paramType === "url") {
     pathDetail.parameters
-      .filter((item) => item.name !== "token")
+      ?.filter((item) => item.name !== "token")
       .forEach((item) => {
         if (paramsString !== "") paramsString += ",";
         paramsString =
@@ -112,14 +112,19 @@ function genContent(
       paramsString = `data: {${paramsString}}`;
     }
   } else {
-    const params = pathDetail.parameters.filter(
+    const params = pathDetail.parameters?.filter(
       (item) => item.name !== "token"
     );
-    if (params.length > 0) {
-      const param = pathDetail.parameters[0];
-      paramsString = `data: ${param.schema?.originalRef}`;
-      // needInputList.push(param.schema!.originalRef);
-      addToFileDependence(fileName, param.schema!.originalRef);
+    if (params && params.length > 0) {
+      const param = params[0];
+      if (param.schema) {
+        paramsString = `data: ${param.schema?.originalRef}`;
+        // needInputList.push(param.schema!.originalRef);
+        addToFileDependence(fileName, param.schema.originalRef);
+      } else {
+        // example: formData
+        paramsString = `data: ${param.type}`;
+      }
     }
   }
 
@@ -135,7 +140,10 @@ function genContent(
   // );
 
   let returnTypeString = "any"; // 默认为any 有些接口文档不标准没有返回值类型
-  if (pathDetail.responses[200].schema) {
+  if (
+    pathDetail.responses[200].schema &&
+    pathDetail.responses[200].schema.originalRef
+  ) {
     const result = originalRefToType(
       fileName,
       pathDetail.responses[200].schema.originalRef
@@ -227,8 +235,11 @@ function genType(apiJSON: IApiJSON) {
           if ("items" in propertyValue) {
             if ("originalRef" in propertyValue.items) {
               type = `Array<${propertyValue.items.originalRef}>`;
-              if (!typeList.includes(propertyValue.items.originalRef)) {
-                addToFileDependence("other", propertyValue.items.originalRef);
+              if (!typeList.includes(propertyValue.items.originalRef ?? "")) {
+                addToFileDependence(
+                  "other",
+                  propertyValue.items.originalRef ?? ""
+                );
                 throw new Error("interface not found");
               }
             } else {
@@ -254,8 +265,9 @@ function genType(apiJSON: IApiJSON) {
             requiredList?.includes(propertyKey) ? "?" : ""
           }: ${type};\n`;
         }
+        const title = value.title.replace(/[^A-Za-z0-9\U4e00-\u9fa5_]/g, "_");
         const content = `
-export interface ${value.title} {
+export interface ${title} {
 ${propertyString}}
       `;
         fs.appendFileSync(nodePath.resolve(GEN_TYPE_DIR, "index.ts"), content);
@@ -294,6 +306,14 @@ export function gen(apiJSON: IApiJSON) {
       pathTag = path.get.tags.join("");
       requestType = "get";
       pathDetail = path.get;
+    } else if ("delete" in path) {
+      pathTag = path.delete.tags.join("");
+      requestType = "post";
+      pathDetail = path.delete;
+    } else if ("put" in path) {
+      pathTag = path.put.tags.join("");
+      requestType = "post";
+      pathDetail = path.put;
     } else {
       pathTag = path.post.tags.join("");
       requestType = "post";

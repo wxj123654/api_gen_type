@@ -4,7 +4,7 @@
   "description": "api gen ts type",
   "main": "./lib/index.js",
   "scripts": {
-    "dev": "tsc && node ./dist/index.js",
+    "dev": "tsc && node ./lib/index.js",
     "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

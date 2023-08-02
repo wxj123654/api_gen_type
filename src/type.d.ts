@@ -68,7 +68,7 @@ interface ITag {
   name: string;
 }
 
-type IPath = IPathGET | IPathPOST;
+type IPath = IPathGET | IPathPOST | IPathDELETE | IPathPUT;
 
 interface IPathGET {
   get: IPathDetail;
@@ -77,19 +77,26 @@ interface IPathPOST {
   post: IPathDetail;
 }
 
+interface IPathDELETE {
+  delete: IPathDetail;
+}
+interface IPathPUT {
+  put: IPathDetail;
+}
+
 export interface IPathDetail {
   consumes: Array<string>;
   deprecated: boolean;
   description: string;
   operationId: string;
-  parameters: Array<IParams>;
+  parameters: Array<IParams> | null;
   responses: {
     200: {
       description: string;
       schema: {
         $ref: string;
-        originalRef: string;
-      };
+        originalRef: string | null;
+      } | null;
     };
   };
   summary: string;
@@ -102,7 +109,7 @@ export interface IParams {
   name: string;
   required: string;
   in: string;
-  schema?: ISchema; // 目前只有post请求有
+  schema?: ISchema; // 目前只有post请求有，post请求也不一定有
   type: string; // 传入的类型
 }
 
@@ -114,4 +121,13 @@ interface ISchema {
 interface ITagFileMap {
   tagName: string;
   fileName: string;
+}
+
+interface IGenConfig {
+  baseUrl: string;
+  genBase?: {
+    apiFileDir: string;
+    typeFileDir: string;
+  };
+  categoryName: string;
 }

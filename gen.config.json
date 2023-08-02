@@ -1,0 +1,8 @@
+{
+  "categoryName": "后台接口",
+  "baseUrl": "http://api.live-mall.nodewebapp.com",
+  "genBase": {
+    "apiFileDir": "gen_api",
+    "typeFileDir": "gen_type"
+  }
+}
