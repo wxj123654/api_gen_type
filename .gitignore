@@ -2,3 +2,4 @@ dist
 node_modules
 gen_api
 gen_type
+lib

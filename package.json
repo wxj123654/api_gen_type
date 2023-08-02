@@ -2,11 +2,14 @@
   "name": "api_gen_type",
   "version": "1.0.0",
   "description": "api gen ts type",
-  "main": "index.js",
+  "main": "./lib/index.js",
   "scripts": {
     "dev": "tsc && node ./dist/index.js",
     "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "bin": {
+    "gen": "./bin/gen"
   },
   "author": "",
   "license": "ISC",
