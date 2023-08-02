@@ -10,6 +10,7 @@ const typeMap: Record<string, string> = {
   string: "string",
   boolean: "boolean",
   number: "number",
+  object: "Record<string, any>",
 };
 
 function addToFileDependence(fileName: string, dependence: string) {
@@ -63,15 +64,17 @@ function originalRefToType(fileName: string, ref: string) {
   const dependence = dependenceList[dependenceList.length - 1];
   if (dependenceList.includes("Page")) {
     returnTypeString = `ResponsePage<${dependence}>`;
+    addToFileDependence(fileName, "ResponsePage");
   } else if (dependenceList.includes("List")) {
     returnTypeString = `Response<${dependence}[]>`;
   } else if (dependence === "Result") {
     returnTypeString = `Response<any>`;
   } else {
+    addToFileDependence(fileName, "Response");
     returnTypeString = `Response<${dependence}>`;
   }
 
-  const noImportType = ["string", "integer", "boolean", "object"];
+  const noImportType = Object.keys(typeMap);
   if (dependence !== "Result" && !noImportType.includes(dependence))
     addToFileDependence(fileName, dependence);
 
@@ -172,6 +175,29 @@ function addDependenceToFile() {
   }
 }
 
+function getInitTypeContent() {
+  return `
+export interface ResponsePage<T> {
+  code: number; //	状态码	integer(int32)	integer(int32)
+  data: {
+    pages: number; //		integer(int64)
+    size: number; //		integer(int64)
+    total: number; //		integer(int64)
+    records: T[];
+  }; //	结果集	CosCredentialVo	CosCredentialVo
+  message: string; //	状态文本	string
+  requestNo: string; //	请求流水号	string
+}
+
+export interface Response<T> {
+  code: number; //	状态码	integer(int32)	integer(int32)
+  data: T; //	结果集	CosCredentialVo	CosCredentialVo
+  message: string; //	状态文本	string
+  requestNo: string; //	请求流水号	string
+}
+  `;
+}
+
 /**
  * 生成类型
  */
@@ -179,7 +205,10 @@ function genType(apiJSON: IApiJSON) {
   if (!fs.existsSync(GEN_TYPE_DIR)) {
     fs.mkdirSync(GEN_TYPE_DIR);
   }
-  fs.writeFileSync(nodePath.resolve(GEN_TYPE_DIR, "index.ts"), "");
+  fs.writeFileSync(
+    nodePath.resolve(GEN_TYPE_DIR, "index.ts"),
+    getInitTypeContent()
+  );
 
   let typeList: string[] = [];
   for (let dependenceSet of fileDependence.values()) {
@@ -190,15 +219,11 @@ function genType(apiJSON: IApiJSON) {
     for (let key in apiJSON.definitions) {
       if (typeList.includes(key)) {
         const value = apiJSON.definitions[key];
-
+        const requiredList = apiJSON.definitions[key].required;
         let propertyString = "";
         for (let propertyKey in value.properties) {
           const propertyValue = value.properties[propertyKey];
           let type: string;
-          // if ('type' in propertyValue.type === undefined) {
-          //   console.log("propertyValue", propertyValue);
-          // }
-          // console.log("propertyValue.type", propertyValue.type);
           if ("items" in propertyValue) {
             if ("originalRef" in propertyValue.items) {
               type = `Array<${propertyValue.items.originalRef}>`;
@@ -211,20 +236,23 @@ function genType(apiJSON: IApiJSON) {
               type = `Array<${typeMap[propertyValue.items.type]}>`;
             }
           } else if ("enum" in propertyValue) {
-            type = propertyValue.enum.join(" | ");
+            type = propertyValue.enum.map((item) => `"${item}"`).join(" | ");
           } else if ("originalRef" in propertyValue) {
             const result = originalRefToType(
               "other",
               propertyValue.originalRef
             );
             type = result.returnTypeString;
-            if (typeList.includes(result.dependence)) {
+            if (!typeList.includes(result.dependence)) {
               throw new Error("interface not found");
             }
           } else {
             type = typeMap[propertyValue.type];
           }
-          propertyString += `  ${propertyKey}: ${type};\n`;
+
+          propertyString += `  ${propertyKey}${
+            requiredList?.includes(propertyKey) ? "?" : ""
+          }: ${type};\n`;
         }
         const content = `
 export interface ${value.title} {

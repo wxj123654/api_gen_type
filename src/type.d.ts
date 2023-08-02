@@ -17,7 +17,8 @@ interface IApiJSON {
 
 type IProperty =
   | IPropertyBaseType
-  | IPropertyArray
+  | IPropertyArrayObject
+  | IPropertyArrayRef
   | IPropertyEnum
   | IPropertyRef;
 
@@ -26,10 +27,21 @@ interface IPropertyBaseType {
   type: string;
 }
 
-interface IPropertyArray {
-  items: ISchema;
+interface IPropertyArrayBase {
+  // items: ISchema;
   description: string;
   type: string;
+}
+
+interface IPropertyArrayObject extends IPropertyArrayBase {
+  items: {
+    type: string;
+    description?: string;
+  };
+}
+
+interface IPropertyArrayRef extends IPropertyArrayBase {
+  items: ISchema;
 }
 
 interface IPropertyEnum {
