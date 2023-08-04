@@ -12,7 +12,7 @@ gen.config.json
 配置示例
 {
   "categoryName": "后台接口",
-  "baseUrl": "http://api.live-mall.nodewebapp.com",
+  "baseUrl": "xxx.com",
   "genBase": {
     "apiFileDir": "gen_api",
     "typeFileDir": "gen_type"
