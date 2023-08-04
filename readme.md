@@ -1,3 +1,8 @@
+## 安装方式
+```js
+npm install api_gen_type --dev
+```
+
 ## 使用方式
 
 在项目的根目录新建文件

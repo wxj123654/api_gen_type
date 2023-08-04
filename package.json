@@ -1,11 +1,16 @@
 {
   "name": "api_gen_type",
-  "version": "1.0.0",
+  "version": "1.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wxj123654/api_gen_type.git"
+  },
   "description": "api gen ts type",
   "main": "./lib/index.js",
   "files": [
     "bin",
-    "lib"
+    "lib",
+    "assets"
   ],
   "scripts": {
     "dev": "tsc && node ./lib/index.js",
