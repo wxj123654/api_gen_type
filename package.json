@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "api gen ts type",
   "main": "./lib/index.js",
+  "files": [
+    "bin",
+    "lib"
+  ],
   "scripts": {
     "dev": "tsc && node ./lib/index.js",
     "build": "tsc",

@@ -176,7 +176,11 @@ function addDependenceToFile() {
     }
 
     const computedFilePath = nodePath.resolve(GEN_API_DIR, fileName);
-    const dependenceResultString = `import type { ${dependenceString} } from "../${GEN_TYPE_DIR}"`;
+    const relativePath = nodePath.relative(
+      nodePath.resolve(GEN_API_DIR),
+      nodePath.resolve(GEN_TYPE_DIR)
+    );
+    const dependenceResultString = `import type { ${dependenceString} } from "${relativePath}"`;
     const prevString = fs.readFileSync(computedFilePath);
     fs.writeFileSync(computedFilePath, dependenceResultString);
     fs.appendFileSync(computedFilePath, prevString);
@@ -213,21 +217,26 @@ function genType(apiJSON: IApiJSON) {
   if (!fs.existsSync(GEN_TYPE_DIR)) {
     fs.mkdirSync(GEN_TYPE_DIR);
   }
+  // type文件默认写入Response和ResponsePage
   fs.writeFileSync(
     nodePath.resolve(GEN_TYPE_DIR, "index.ts"),
     getInitTypeContent()
   );
 
+  // 获取搜索需要声明的类型
   let typeList: string[] = [];
   for (let dependenceSet of fileDependence.values()) {
+    // 从每个文件中获取需要的类型，push到typeList中
     typeList = typeList.concat(...dependenceSet);
   }
   console.log("typeList", typeList);
   try {
     for (let key in apiJSON.definitions) {
+      // 遍历所有定义的类型 对在typeList中的类型进行处理
       if (typeList.includes(key)) {
         const value = apiJSON.definitions[key];
-        const requiredList = apiJSON.definitions[key].required;
+        // 属性是否必填
+        const requiredList = value.required;
         let propertyString = "";
         for (let propertyKey in value.properties) {
           const propertyValue = value.properties[propertyKey];
@@ -236,6 +245,7 @@ function genType(apiJSON: IApiJSON) {
             if ("originalRef" in propertyValue.items) {
               type = `Array<${propertyValue.items.originalRef}>`;
               if (!typeList.includes(propertyValue.items.originalRef ?? "")) {
+                // 引用了其他类型，将类型添加到dependence中，抛出错误重新开始处理
                 addToFileDependence(
                   "other",
                   propertyValue.items.originalRef ?? ""
@@ -243,7 +253,6 @@ function genType(apiJSON: IApiJSON) {
                 throw new Error("interface not found");
               }
             } else {
-              // TODO!
               type = `Array<${typeMap[propertyValue.items.type]}>`;
             }
           } else if ("enum" in propertyValue) {
@@ -260,7 +269,7 @@ function genType(apiJSON: IApiJSON) {
           } else {
             type = typeMap[propertyValue.type];
           }
-
+          // 没有返回requiredList字段的默认都为必填
           propertyString += `  ${propertyKey}${
             requiredList?.includes(propertyKey) ? "?" : ""
           }: ${type};\n`;
