@@ -1,8 +1,13 @@
 import http from "http";
+import https from "https";
 
 export function getResponse(url: string) {
   return new Promise((resolve, reject) => {
-    http
+    let method: typeof http | typeof https = http;
+    if (url.startsWith("https")) {
+      method = https;
+    }
+    method
       .get(url, (res) => {
         let list: any[] = [];
         res.on("data", (chunk) => {
